@@ -16,7 +16,6 @@
 # Import necessary libraries
 import argparse
 import ladder_generation
-import data
 
 def main():
     """
