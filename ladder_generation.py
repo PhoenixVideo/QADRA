@@ -108,10 +108,10 @@ class LadderGenerator:
                     highest_vmaf = vmaf[i]
         if highest_vmaf != -1:
             index = vmaf.index(highest_vmaf)
-            predicted_resolution = resolutions[index]
+            predicted_resolution = self.resolutions_list[index]
 
         resolution = self.get_resolution_based_on_bitrate(predicted_resolution,previous_resolution, bitrate)
-        index = resolutions.index(resolution)
+        index = self.resolutions_list.index(resolution)
         predicted_vmaf = vmaf[index]
         predicted_time = time[index]
         result_list.extend([resolution,predicted_vmaf,predicted_time])
