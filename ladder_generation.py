@@ -24,20 +24,24 @@ import warnings
 # Disable all warnings
 warnings.filterwarnings("ignore")
 
+
 # Creating a class to handle ladder generation
 class LadderGenerator:
     # Constructor
-    def __init__(self, max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list):
+    def __init__(self, max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_vmaf, jnd):
         self.models_time = None
         self.models_vmaf = None
         self.models_crf = None
         self.max_time = max_time
-        self.actual_max_time = max_time-0.5
+        self.actual_max_time = max_time - 0.5
         self.codec = codec
         self.ladre_csv = ladre_csv
         self.bitrates_list = bitrates
         self.df_consolidated = pd.read_csv(dataset_path)
         self.resolutions_list = resolutions_list
+        self.max_resolution = r_max
+        self.max_vmaf = max_vmaf
+        self.jnd = jnd
 
     # Load corresponding prediction models
     def load_models(self):
@@ -49,46 +53,47 @@ class LadderGenerator:
             sys.exit()
         # Load models for different resolutions
         self.models_vmaf = {
-            360: pickle.load(open(os.path.join(model_path, 'vmaf','Random_forest_vmaf_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path,'vmaf','Random_forest_vmaf_720p.pkl'), 'rb')),
-            1080: pickle.load(open(os.path.join(model_path,'vmaf','Random_forest_vmaf_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path,'vmaf','Random_forest_vmaf_2160p.pkl'), 'rb')),
+            360: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_360p.pkl'), 'rb')),
+            720: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_720p.pkl'), 'rb')),
+            1080: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_1080p.pkl'), 'rb')),
+            2160: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_2160p.pkl'), 'rb')),
         }
         self.models_crf = {
-            360: pickle.load(open(os.path.join(model_path,'crf','Random_forest_crf_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path,'crf','Random_forest_crf_720p.pkl'), 'rb')),
-            1080:pickle.load(open(os.path.join(model_path,'crf','Random_forest_crf_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path,'crf','Random_forest_crf_2160p.pkl'), 'rb')),
+            360: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_360p.pkl'), 'rb')),
+            720: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_720p.pkl'), 'rb')),
+            1080: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_1080p.pkl'), 'rb')),
+            2160: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_2160p.pkl'), 'rb')),
         }
 
         self.models_time = {
-            360: pickle.load(open(os.path.join(model_path,'time','Random_forest_time_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path,'time','Random_forest_time_720p.pkl'), 'rb')),
-            1080: pickle.load(open(os.path.join(model_path,'time','Random_forest_time_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path,'time','Random_forest_time_2160p.pkl'), 'rb')),
+            360: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_360p.pkl'), 'rb')),
+            720: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_720p.pkl'), 'rb')),
+            1080: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_1080p.pkl'), 'rb')),
+            2160: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_2160p.pkl'), 'rb')),
         }
 
     # Get the predicted resolution and crf as a list based on the features and the predicted time
     def get_resolution_and_crf(
-        self,
-        vmaf_features,
-        crf_or_time_features_list,
-        bitrate,
-        time,
-        previous_resolution,
+            self,
+            vmaf_features,
+            crf_or_time_features_list,
+            bitrate,
+            time,
+            previous_resolution,
     ):
         log_bitrate = np.log(bitrate)
         resolution_predicted_features_list = self.select_best_resolution(
-            vmaf_features, crf_or_time_features_list, log_bitrate, time, previous_resolution,bitrate
+            vmaf_features, crf_or_time_features_list, log_bitrate, time, previous_resolution, bitrate
         )
 
         crf = self.predict_crf(crf_or_time_features_list, resolution_predicted_features_list[0], log_bitrate)
-        result_list = [resolution_predicted_features_list[0], crf, resolution_predicted_features_list[1],resolution_predicted_features_list[2]]
+        result_list = [resolution_predicted_features_list[0], crf, resolution_predicted_features_list[1],
+                       resolution_predicted_features_list[2]]
         return result_list
 
     # Get the best resolution based the predicted and target time
     def select_best_resolution(
-        self, vmaf_features, crf_or_time_features_list, log_bitrate, tl, previous_resolution,bitrate
+            self, vmaf_features, crf_or_time_features_list, log_bitrate, tl, previous_resolution, bitrate
     ):
         result_list = []
         predicted_resolution = self.resolutions_list[0]
@@ -110,14 +115,15 @@ class LadderGenerator:
             index = vmaf.index(highest_vmaf)
             predicted_resolution = self.resolutions_list[index]
 
-        resolution = self.get_resolution_based_on_bitrate(predicted_resolution,previous_resolution, bitrate)
+        resolution = self.get_resolution_based_on_bitrate(predicted_resolution, previous_resolution, bitrate)
         index = self.resolutions_list.index(resolution)
         predicted_vmaf = vmaf[index]
         predicted_time = time[index]
-        result_list.extend([resolution,predicted_vmaf,predicted_time])
+        result_list.extend([resolution, predicted_vmaf, predicted_time])
         return result_list
 
-    def get_resolution_based_on_bitrate(self, predicted_resolution,previous_resolution, bitrate):
+    @staticmethod
+    def get_resolution_based_on_bitrate(predicted_resolution, previous_resolution, bitrate):
         if bitrate < 1000:
             if predicted_resolution == 2160:
                 return previous_resolution
@@ -156,12 +162,29 @@ class LadderGenerator:
         predictions = model.predict(test_vector)
         return int(predictions)
 
+    def jnd_elimination(self, jnd_feature_list):
+        bitrate_list_len = len(self.bitrates_list)
+        representations = [jnd_feature_list[0]]
+        prev_index = 0
+        if jnd_feature_list[0][12] > self.max_vmaf:
+            return representations
+        index = 1
+        while index < bitrate_list_len:
+            if (jnd_feature_list[index][12] - jnd_feature_list[prev_index][12]) >= self.jnd:
+                representations.append(jnd_feature_list[index])
+                prev_index = index
+                if jnd_feature_list[index][12] >= self.max_vmaf:
+                    return representations
+            index = index + 1
+        return representations
+
     def generate_ladder(self):
         new_features_list = []
         condition1 = self.df_consolidated['Train'] == 0
         df_test = self.df_consolidated[condition1]
         video_names = df_test["VideoName"].unique().tolist()
         for video_name in video_names:
+            jnd_feature_list = []
             filter_condition = df_test["VideoName"] == video_name
             filtered_df = df_test[filter_condition]
             vmaf_features_list = filtered_df[["AvgE", "Avgh", "AvgL"]].values.tolist()
@@ -181,13 +204,18 @@ class LadderGenerator:
                 previous_resolution = resolution_crf_vmaf_time_list[0]
                 predicted_resolution = resolution_crf_vmaf_time_list[0]
                 predicted_crf = resolution_crf_vmaf_time_list[1]
+                predicted_vmaf = resolution_crf_vmaf_time_list[2]
                 final_parameters.append(video_name)
                 final_parameters.extend(crf_or_time_features_list[0])
                 final_parameters.append(bitrate)
                 final_parameters.append(self.max_time)
                 final_parameters.append(predicted_resolution)
                 final_parameters.append(predicted_crf)
-                new_features_list.append(final_parameters)
+                final_parameters.append(predicted_vmaf)
+                jnd_feature_list.append(final_parameters)
+
+            representations = self.jnd_elimination(jnd_feature_list)
+            new_features_list.extend(representations)
 
         final_csv_df = pd.DataFrame(
             new_features_list,
@@ -203,10 +231,12 @@ class LadderGenerator:
                 "targetBitrate",
                 "timeLimit",
                 "resolution",
-                "crf"
+                "crf",
+                "vmaf"
             ],
 
         )
+        final_csv_df = final_csv_df.drop(columns=['vmaf'])
 
         # Write the DataFrame to a CSV file
         final_csv_df.to_csv(self.ladre_csv, index=False)

@@ -17,6 +17,7 @@
 import argparse
 import ladder_generation
 
+
 def main():
     """
     The main entry point of the program.
@@ -28,6 +29,10 @@ def main():
     parser.add_argument("--maxTime", help="Maximum acceptable time")
     parser.add_argument("--codec", help="Codec name- x264, x265, av1, vvenc")
     parser.add_argument("--ladreCsv", help="Output csv with optimized bitrate ladder")
+    parser.add_argument("--rmax", help="Maximum supported resolution")
+    parser.add_argument("--jnd", help="Output csv with optimized bitrate ladder")
+    parser.add_argument("--maxVmaf", help="Maximum Vmaf")
+    parser.add_argument("--jnd", help="Jnd")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -35,14 +40,23 @@ def main():
     # Access the parsed arguments
     max_time = float(args.maxTime)
     codec = args.codec
+    r_max = args.codec
     ladre_csv = args.ladreCsv
-    bitrates = [145, 300,600, 900, 1600, 2400, 3400, 4500, 5800, 8100, 11600, 16800]
+    max_vmaf = args.maxVmaf
+    jnd = args.jnd
+    bitrates = [145, 300, 600, 900, 1600, 2400, 3400, 4500, 5800, 8100, 11600, 16800]
     dataset_path = "dataset/Sequences.csv"
     resolutions_list = [360, 720, 1080, 2160]
-
-    l_gen = ladder_generation.LadderGenerator(max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list)
+    resolutions = []
+    for resolution in resolutions_list:
+        resolutions.append(resolution)
+        if resolution == r_max:
+            break
+    l_gen = ladder_generation.LadderGenerator(max_time, codec, ladre_csv, bitrates, dataset_path, resolutions, r_max,
+                                              max_vmaf, jnd)
     l_gen.load_models()
     l_gen.generate_ladder()
+
 
 # Execute the main function
 if __name__ == "__main__":
