@@ -30,7 +30,6 @@ def main():
     parser.add_argument("--codec", help="Codec name- x264, x265, av1, vvenc")
     parser.add_argument("--ladreCsv", help="Output csv with optimized bitrate ladder")
     parser.add_argument("--rmax", help="Maximum supported resolution")
-    parser.add_argument("--jnd", help="Output csv with optimized bitrate ladder")
     parser.add_argument("--maxVmaf", help="Maximum Vmaf")
     parser.add_argument("--jnd", help="Jnd")
 
