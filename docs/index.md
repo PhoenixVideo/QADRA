@@ -17,3 +17,5 @@ Although reducing the overall encoding energy consumption and storage needed to 
 LiveVBR is available as an open source library, published under the GPLv3 license.
 
  - [CLI options](cli.md)
+
+ ![LADRE](https://github.com/PhoenixVideo/LADRE/blob/main/docs/LADRE_implementation.png)
