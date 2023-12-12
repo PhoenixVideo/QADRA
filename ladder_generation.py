@@ -20,6 +20,7 @@ import pickle
 import sys
 import os
 import warnings
+import joblib
 
 # Disable all warnings
 warnings.filterwarnings("ignore")
@@ -28,10 +29,10 @@ warnings.filterwarnings("ignore")
 # Creating a class to handle ladder generation
 class LadderGenerator:
     # Constructor
-    def __init__(self, max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_vmaf, jnd):
+    def __init__(self, max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_xpsnr, jnd):
         self.models_time = None
-        self.models_vmaf = None
-        self.models_crf = None
+        self.models_xpsnr = None
+        self.models_qp = None
         self.max_time = max_time
         self.actual_max_time = max_time - 0.5
         self.codec = codec
@@ -40,86 +41,91 @@ class LadderGenerator:
         self.df_consolidated = pd.read_csv(dataset_path)
         self.resolutions_list = resolutions_list
         self.max_resolution = r_max
-        self.max_vmaf = max_vmaf
+        self.max_xpsnr = max_xpsnr
         self.jnd = jnd
-
+        
     # Load corresponding prediction models
     def load_models(self):
         # Set path to model
-        if self.codec == "x265":
-            model_path = "./models/x265-ultrafast"
+        if self.codec == "vvenc":
+            model_path = "./models/vvenc-faster"
         else:
             print("Codec not supported")
             sys.exit()
         # Load models for different resolutions
-        self.models_vmaf = {
-            360: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_720p.pkl'), 'rb')),
-            1080: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path, 'vmaf', 'Random_forest_vmaf_2160p.pkl'), 'rb')),
+        self.models_xpsnr = {
+            360: joblib.load(open(os.path.join(model_path, 'xpsnr', '360.pkl'), 'rb')),
+            540: joblib.load(open(os.path.join(model_path, 'xpsnr', '540.pkl'), 'rb')),
+            720: joblib.load(open(os.path.join(model_path, 'xpsnr', '720.pkl'), 'rb')),
+            1080: joblib.load(open(os.path.join(model_path, 'xpsnr', '1080.pkl'), 'rb')),
+            1440: joblib.load(open(os.path.join(model_path, 'xpsnr', '1440.pkl'), 'rb')),
+            2160: joblib.load(open(os.path.join(model_path, 'xpsnr', '2160.pkl'), 'rb')),
         }
-        self.models_crf = {
-            360: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_720p.pkl'), 'rb')),
-            1080: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path, 'crf', 'Random_forest_crf_2160p.pkl'), 'rb')),
+        self.models_qp = {
+            360: joblib.load(open(os.path.join(model_path, 'qp', '360.pkl'), 'rb')),
+            540: joblib.load(open(os.path.join(model_path, 'qp', '540.pkl'), 'rb')),
+            720: joblib.load(open(os.path.join(model_path, 'qp', '720.pkl'), 'rb')),
+            1080: joblib.load(open(os.path.join(model_path, 'qp', '1080.pkl'), 'rb')),
+            1440: joblib.load(open(os.path.join(model_path, 'qp', '1440.pkl'), 'rb')),
+            2160: joblib.load(open(os.path.join(model_path, 'qp', '2160.pkl'), 'rb')),
         }
 
         self.models_time = {
-            360: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_360p.pkl'), 'rb')),
-            720: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_720p.pkl'), 'rb')),
-            1080: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_1080p.pkl'), 'rb')),
-            2160: pickle.load(open(os.path.join(model_path, 'time', 'Random_forest_time_2160p.pkl'), 'rb')),
+            360: joblib.load(open(os.path.join(model_path, 'time', '360.pkl'), 'rb')),
+            540: joblib.load(open(os.path.join(model_path, 'time', '540.pkl'), 'rb')),
+            720: joblib.load(open(os.path.join(model_path, 'time', '720.pkl'), 'rb')),
+            1080: joblib.load(open(os.path.join(model_path, 'time', '1080.pkl'), 'rb')),
+            1440: joblib.load(open(os.path.join(model_path, 'time', '1440.pkl'), 'rb')),
+            2160: joblib.load(open(os.path.join(model_path, 'time', '2160.pkl'), 'rb')),
         }
 
-    # Get the predicted resolution and crf as a list based on the features and the predicted time
-    def get_resolution_and_crf(
+    # Get the predicted resolution and qp as a list based on the features and the predicted time
+    def get_resolution_and_qp(
             self,
-            vmaf_features,
-            crf_or_time_features_list,
+            xpsnr_features,
+            qp_or_time_features_list,
             bitrate,
             time,
             previous_resolution,
     ):
-        log_bitrate = np.log(bitrate)
         resolution_predicted_features_list = self.select_best_resolution(
-            vmaf_features, crf_or_time_features_list, log_bitrate, time, previous_resolution, bitrate
+            xpsnr_features, qp_or_time_features_list, time, previous_resolution, bitrate
         )
 
-        crf = self.predict_crf(crf_or_time_features_list, resolution_predicted_features_list[0], log_bitrate)
-        result_list = [resolution_predicted_features_list[0], crf, resolution_predicted_features_list[1],
+        qp = self.predict_qp(qp_or_time_features_list, resolution_predicted_features_list[0], bitrate)
+        result_list = [resolution_predicted_features_list[0], qp, resolution_predicted_features_list[1],
                        resolution_predicted_features_list[2]]
         return result_list
 
     # Get the best resolution based the predicted and target time
     def select_best_resolution(
-            self, vmaf_features, crf_or_time_features_list, log_bitrate, tl, previous_resolution, bitrate
+            self, xpsnr_features, qp_or_time_features_list, tl, previous_resolution, bitrate
     ):
         result_list = []
         predicted_resolution = self.resolutions_list[0]
-        vmaf = []
+        xpsnr = []
         time = []
         for resolution in self.resolutions_list:
-            vmaf.append(self.predict_vmaf(vmaf_features, resolution, log_bitrate))
+            xpsnr.append(self.predict_xpsnr(xpsnr_features, resolution, bitrate))
             time.append(
-                self.predict_time(crf_or_time_features_list, resolution, log_bitrate)
+                self.predict_time(qp_or_time_features_list, resolution, bitrate)
             )
 
-        highest_vmaf = -1
+        highest_xpsnr = -1
 
-        for i in range(len(vmaf)):
+        for i in range(len(xpsnr)):
             if time[i] < tl:
-                if vmaf[i] > highest_vmaf:
-                    highest_vmaf = vmaf[i]
-        if highest_vmaf != -1:
-            index = vmaf.index(highest_vmaf)
+                if xpsnr[i] > highest_xpsnr:
+                    highest_xpsnr = xpsnr[i]
+        if highest_xpsnr != -1:
+            index = xpsnr.index(highest_xpsnr)
             predicted_resolution = self.resolutions_list[index]
 
         resolution = self.get_resolution_based_on_bitrate(predicted_resolution, previous_resolution, bitrate)
         index = self.resolutions_list.index(resolution)
-        predicted_vmaf = vmaf[index]
+        predicted_xpsnr = xpsnr[index]
         predicted_time = time[index]
-        result_list.extend([resolution, predicted_vmaf, predicted_time])
+        result_list.extend([resolution, predicted_xpsnr, predicted_time])
         return result_list
 
     @staticmethod
@@ -144,21 +150,21 @@ class LadderGenerator:
         predictions = model.predict(test_vector)
         return predictions[0]
 
-    def predict_vmaf(self, features, resolution, bitrate):
+    def predict_xpsnr(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
         vector.append(bitrate)
         test_vector = [vector]
-        model = self.models_vmaf[resolution]
+        model = self.models_xpsnr[resolution]
         predictions = model.predict(test_vector)
         return predictions[0]
 
-    def predict_crf(self, features, resolution, bitrate):
+    def predict_qp(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
         vector.append(bitrate)
         test_vector = [vector]
-        model = self.models_crf[resolution]
+        model = self.models_qp[resolution]
         predictions = model.predict(test_vector)
         return int(predictions)
 
@@ -166,14 +172,14 @@ class LadderGenerator:
         bitrate_list_len = len(self.bitrates_list)
         representations = [jnd_feature_list[0]]
         prev_index = 0
-        if jnd_feature_list[0][12] > self.max_vmaf:
+        if jnd_feature_list[0][12] > self.max_xpsnr:
             return representations
         index = 1
         while index < bitrate_list_len:
             if (jnd_feature_list[index][12] - jnd_feature_list[prev_index][12]) >= self.jnd:
                 representations.append(jnd_feature_list[index])
                 prev_index = index
-                if jnd_feature_list[index][12] >= self.max_vmaf:
+                if jnd_feature_list[index][12] >= self.max_xpsnr:
                     return representations
             index = index + 1
         return representations
@@ -187,31 +193,31 @@ class LadderGenerator:
             jnd_feature_list = []
             filter_condition = df_test["VideoName"] == video_name
             filtered_df = df_test[filter_condition]
-            vmaf_features_list = filtered_df[["AvgE", "Avgh", "AvgL"]].values.tolist()
-            crf_or_time_features_list = filtered_df[
-                ["AvgE", "Avgh", "AvgL", "avgU", "energyU", "avgV", "energyV"]
+            xpsnr_features_list = filtered_df[["AvgE", "Avgh", "AvgL", "avgU", "avgV", "energyU", "energyV"]].values.tolist()
+            qp_or_time_features_list = filtered_df[
+                ["AvgE", "Avgh", "AvgL", "avgU", "avgV", "energyU", "energyV"]
             ].values.tolist()
             previous_resolution = 360
             for bitrate in self.bitrates_list:
                 final_parameters = []
-                resolution_crf_vmaf_time_list = self.get_resolution_and_crf(
-                    vmaf_features_list[0],
-                    crf_or_time_features_list[0],
+                resolution_qp_xpsnr_time_list = self.get_resolution_and_qp(
+                    xpsnr_features_list[0],
+                    qp_or_time_features_list[0],
                     bitrate,
                     self.actual_max_time,
                     previous_resolution,
                 )
-                previous_resolution = resolution_crf_vmaf_time_list[0]
-                predicted_resolution = resolution_crf_vmaf_time_list[0]
-                predicted_crf = resolution_crf_vmaf_time_list[1]
-                predicted_vmaf = resolution_crf_vmaf_time_list[2]
+                previous_resolution = resolution_qp_xpsnr_time_list[0]
+                predicted_resolution = resolution_qp_xpsnr_time_list[0]
+                predicted_qp = resolution_qp_xpsnr_time_list[1]
+                predicted_xpsnr = resolution_qp_xpsnr_time_list[2]
                 final_parameters.append(video_name)
-                final_parameters.extend(crf_or_time_features_list[0])
+                final_parameters.extend(qp_or_time_features_list[0])
                 final_parameters.append(bitrate)
                 final_parameters.append(self.max_time)
                 final_parameters.append(predicted_resolution)
-                final_parameters.append(predicted_crf)
-                final_parameters.append(predicted_vmaf)
+                final_parameters.append(predicted_qp)
+                final_parameters.append(predicted_xpsnr)
                 jnd_feature_list.append(final_parameters)
 
             representations = self.jnd_elimination(jnd_feature_list)
@@ -231,12 +237,12 @@ class LadderGenerator:
                 "targetBitrate",
                 "timeLimit",
                 "resolution",
-                "crf",
-                "vmaf"
+                "qp",
+                "xpsnr"
             ],
 
         )
-        final_csv_df = final_csv_df.drop(columns=['vmaf'])
+        final_csv_df = final_csv_df.drop(columns=['xpsnr'])
 
         # Write the DataFrame to a CSV file
         final_csv_df.to_csv(self.ladre_csv, index=False)
