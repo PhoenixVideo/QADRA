@@ -21,6 +21,7 @@ import sys
 import os
 import warnings
 import joblib
+import math
 
 # Disable all warnings
 warnings.filterwarnings("ignore")
@@ -54,29 +55,16 @@ class LadderGenerator:
             sys.exit()
         # Load models for different resolutions
         self.models_xpsnr = {
-            360: joblib.load(open(os.path.join(model_path, 'xpsnr', '360.pkl'), 'rb')),
-            540: joblib.load(open(os.path.join(model_path, 'xpsnr', '540.pkl'), 'rb')),
-            720: joblib.load(open(os.path.join(model_path, 'xpsnr', '720.pkl'), 'rb')),
-            1080: joblib.load(open(os.path.join(model_path, 'xpsnr', '1080.pkl'), 'rb')),
-            1440: joblib.load(open(os.path.join(model_path, 'xpsnr', '1440.pkl'), 'rb')),
-            2160: joblib.load(open(os.path.join(model_path, 'xpsnr', '2160.pkl'), 'rb')),
+            'single': joblib.load(open(os.path.join(model_path, 'xpsnr', 'xpsnr_model.pkl'), 'rb')),
         }
         self.models_qp = {
-            360: joblib.load(open(os.path.join(model_path, 'qp', '360.pkl'), 'rb')),
-            540: joblib.load(open(os.path.join(model_path, 'qp', '540.pkl'), 'rb')),
-            720: joblib.load(open(os.path.join(model_path, 'qp', '720.pkl'), 'rb')),
-            1080: joblib.load(open(os.path.join(model_path, 'qp', '1080.pkl'), 'rb')),
-            1440: joblib.load(open(os.path.join(model_path, 'qp', '1440.pkl'), 'rb')),
-            2160: joblib.load(open(os.path.join(model_path, 'qp', '2160.pkl'), 'rb')),
+            'minimum': joblib.load(open(os.path.join(model_path, 'qp', 'qp_10_br_model.pkl'), 'rb')),
+            'maximum': joblib.load(open(os.path.join(model_path, 'qp', 'qp_10_br_model.pkl'), 'rb')),
         }
 
-        self.models_time = {
-            360: joblib.load(open(os.path.join(model_path, 'time', '360.pkl'), 'rb')),
-            540: joblib.load(open(os.path.join(model_path, 'time', '540.pkl'), 'rb')),
-            720: joblib.load(open(os.path.join(model_path, 'time', '720.pkl'), 'rb')),
-            1080: joblib.load(open(os.path.join(model_path, 'time', '1080.pkl'), 'rb')),
-            1440: joblib.load(open(os.path.join(model_path, 'time', '1440.pkl'), 'rb')),
-            2160: joblib.load(open(os.path.join(model_path, 'time', '2160.pkl'), 'rb')),
+        self.models_enc_time = {
+            'minimum': joblib.load(open(os.path.join(model_path, 'enc_time', 'qp_10_enc_time_model.pkl'), 'rb')),
+            'maximum': joblib.load(open(os.path.join(model_path, 'enc_time', 'qp_50_enc_time_model.pkl'), 'rb')),
         }
 
     # Get the predicted resolution and qp as a list based on the features and the predicted time
@@ -141,32 +129,52 @@ class LadderGenerator:
         else:
             return predicted_resolution
 
-    def predict_time(self, features, resolution, bitrate):
+    def predict_enc_time(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
-        vector.append(bitrate)
+        vector.append(resolution/2160)
         test_vector = [vector]
-        model = self.models_time[resolution]
-        predictions = model.predict(test_vector)
-        return predictions[0]
+        min_model = self.models_enc_time['minimum']
+        max_model = self.models_enc_time['maximum']
+        cur_enc_time_10 = min_model.predict(test_vector)[0]
+        cur_enc_time_50 = max_model.predict(test_vector)[0]
+        x1 = 10
+        x2 = 50
+        x = self.predict_qp(features, resolution, bitrate)
+        m = (cur_enc_time_50 - cur_enc_time_10) / (x2 - x1)
+        cur_enc_time = float(cur_enc_time_50 + m * (x - x2))
+        return cur_enc_time
 
     def predict_xpsnr(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
+        vector.append(resolution/2160)
         vector.append(bitrate)
         test_vector = [vector]
-        model = self.models_xpsnr[resolution]
+        model = self.models_xpsnr['single']
         predictions = model.predict(test_vector)
         return predictions[0]
 
     def predict_qp(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
-        vector.append(bitrate)
+        vector.append(resolution/2160)
         test_vector = [vector]
-        model = self.models_qp[resolution]
-        predictions = model.predict(test_vector)
-        return int(predictions)
+        min_model = self.models_qp['minimum']
+        max_model = self.models_qp['maximum']
+        b1 = min_model.predict(test_vector)[0]
+        b2 = max_model.predict(test_vector)[0]
+        x1 = 10
+        x2 = 50
+        y = math.log2(bitrate)
+        m = (b2 - b1) / (x2 - x1)
+        b = b1 - m * x1
+        qp_pred = int((y - b)/m)
+        if qp_pred > 50:
+            qp_pred = 50
+        elif qp_pred < 10:
+             qp_pred = 10
+        return int(qp_pred)
 
     def jnd_elimination(self, jnd_feature_list):
         bitrate_list_len = len(self.bitrates_list)
