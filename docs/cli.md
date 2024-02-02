@@ -2,20 +2,25 @@
 
 ## Logging Options
 
-- `--ladreCsv <filename>`
+- `--resultCsv <filename>`
 
 	Write the predicted bitrate ladder to a Comma Separated Values log file. Creates the file if it doesn't already exist. The following parameters are available:
 
 	- `targetBitrate` The target bitrate of the representation
-	- `timeLimit` The encoding time constraint used
-	- `resolution` The selected optimized encoding resolution
-	- `qp` The selected qp for the representation
+	- `timeLimitEnc` The encoding time constraint used
+    - `timeLimitDec` The decoding time constraint used
+    - `resolution` The selected optimized encoding resolution
+    - `qp` The selected qp for the representation
 
 ## Analyzer Configuration
 
-- `--maxTime <integer>` 
+- `--maxEncTime <float>` 
 
 	The encoding time constraint for every representation of the bitrate ladder.
+
+- `--maxDecTime <float>` 
+
+	The decoding time constraint for every representation of the bitrate ladder.
 
 - `--codec <vvenc>` 
 
