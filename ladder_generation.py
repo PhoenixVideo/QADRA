@@ -16,7 +16,6 @@
 # Importing necessary libraries
 import pandas as pd
 import numpy as np
-import pickle
 import sys
 import os
 import warnings
@@ -30,12 +29,14 @@ warnings.filterwarnings("ignore")
 # Creating a class to handle ladder generation
 class LadderGenerator:
     # Constructor
-    def __init__(self, max_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_xpsnr, jnd):
+    def __init__(self, max_enc_time, max_dec_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_xpsnr, jnd):
         self.models_time = None
         self.models_xpsnr = None
         self.models_qp = None
-        self.max_time = max_time
-        self.actual_max_time = max_time - 0.5
+        self.max_enc_time = max_enc_time
+        self.max_dec_time = max_enc_time
+        self.actual_max_enc_time = max_enc_time - 0.5
+        self.actual_max_dec_time = max_dec_time - 0.5
         self.codec = codec
         self.ladre_csv = ladre_csv
         self.bitrates_list = bitrates
@@ -59,7 +60,7 @@ class LadderGenerator:
         }
         self.models_qp = {
             'minimum': joblib.load(open(os.path.join(model_path, 'qp', 'qp_10_br_model.pkl'), 'rb')),
-            'maximum': joblib.load(open(os.path.join(model_path, 'qp', 'qp_10_br_model.pkl'), 'rb')),
+            'maximum': joblib.load(open(os.path.join(model_path, 'qp', 'qp_50_br_model.pkl'), 'rb')),
         }
 
         self.models_enc_time = {
@@ -73,11 +74,12 @@ class LadderGenerator:
             xpsnr_features,
             qp_or_time_features_list,
             bitrate,
-            time,
+            enc_time,
+            dec_time,
             previous_resolution,
     ):
         resolution_predicted_features_list = self.select_best_resolution(
-            xpsnr_features, qp_or_time_features_list, time, previous_resolution, bitrate
+            xpsnr_features, qp_or_time_features_list, enc_time, previous_resolution, bitrate
         )
 
         qp = self.predict_qp(qp_or_time_features_list, resolution_predicted_features_list[0], bitrate)
@@ -96,7 +98,7 @@ class LadderGenerator:
         for resolution in self.resolutions_list:
             xpsnr.append(self.predict_xpsnr(xpsnr_features, resolution, bitrate))
             time.append(
-                self.predict_time(qp_or_time_features_list, resolution, bitrate)
+                self.predict_enc_time(qp_or_time_features_list, resolution, bitrate)
             )
 
         highest_xpsnr = -1
@@ -212,7 +214,8 @@ class LadderGenerator:
                     xpsnr_features_list[0],
                     qp_or_time_features_list[0],
                     bitrate,
-                    self.actual_max_time,
+                    self.actual_max_enc_time,
+                    self.actual_max_dec_time,
                     previous_resolution,
                 )
                 previous_resolution = resolution_qp_xpsnr_time_list[0]
@@ -222,7 +225,8 @@ class LadderGenerator:
                 final_parameters.append(video_name)
                 final_parameters.extend(qp_or_time_features_list[0])
                 final_parameters.append(bitrate)
-                final_parameters.append(self.max_time)
+                final_parameters.append(self.max_enc_time)
+                final_parameters.append(self.max_dec_time)
                 final_parameters.append(predicted_resolution)
                 final_parameters.append(predicted_qp)
                 final_parameters.append(predicted_xpsnr)
@@ -243,7 +247,8 @@ class LadderGenerator:
                 "L_V",
                 "E_V",
                 "targetBitrate",
-                "timeLimit",
+                "timeLimitEnc",
+                "timeLimitDec",
                 "resolution",
                 "qp",
                 "xpsnr"
