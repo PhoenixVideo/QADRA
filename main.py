@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Amritha Premkumar, Prajit T Rajendran, Vignesh V Menon
+# Copyright (C) 2024 Amritha Premkumar, Prajit T Rajendran, Vignesh V Menon
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
