@@ -18,4 +18,4 @@ LiveVBR is available as an open source library, published under the GPLv3 licens
 
  - [CLI options](cli.md)
 
- ![QADRA](https://github.com/PhoenixVideo/QADRA/blob/stable/docs/LADRE_implementation.png)
+ ![QADRA](./docs/LADRE_implementation.png)
