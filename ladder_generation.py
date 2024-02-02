@@ -146,7 +146,7 @@ class LadderGenerator:
         x = self.predict_qp(features, resolution, bitrate)
         m = (cur_enc_time_50 - cur_enc_time_10) / (x2 - x1)
         cur_enc_time = float(cur_enc_time_50 + m * (x - x2))
-        return cur_enc_time
+        return 2 ** cur_enc_time
 
     def predict_xpsnr(self, features, resolution, bitrate):
         vector = []
