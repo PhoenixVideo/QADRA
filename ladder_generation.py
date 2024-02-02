@@ -13,14 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
+import os
+import sys
+import warnings
+
+import joblib
 # Importing necessary libraries
 import pandas as pd
-import numpy as np
-import sys
-import os
-import warnings
-import joblib
-import math
 
 # Disable all warnings
 warnings.filterwarnings("ignore")
@@ -29,7 +29,9 @@ warnings.filterwarnings("ignore")
 # Creating a class to handle ladder generation
 class LadderGenerator:
     # Constructor
-    def __init__(self, max_enc_time, max_dec_time, codec, ladre_csv, bitrates, dataset_path, resolutions_list, r_max, max_xpsnr, jnd):
+    def __init__(self, max_enc_time, max_dec_time, codec, result_csv, bitrates, dataset_path, resolutions_list, r_max,
+                 max_xpsnr, jnd):
+        self.models_enc_time = None
         self.models_time = None
         self.models_xpsnr = None
         self.models_qp = None
@@ -38,14 +40,14 @@ class LadderGenerator:
         self.actual_max_enc_time = max_enc_time - 0.5
         self.actual_max_dec_time = max_dec_time - 0.5
         self.codec = codec
-        self.ladre_csv = ladre_csv
+        self.result_csv = result_csv
         self.bitrates_list = bitrates
         self.df_consolidated = pd.read_csv(dataset_path)
         self.resolutions_list = resolutions_list
         self.max_resolution = r_max
         self.max_xpsnr = max_xpsnr
         self.jnd = jnd
-        
+
     # Load corresponding prediction models
     def load_models(self):
         # Set path to model
@@ -75,7 +77,6 @@ class LadderGenerator:
             qp_or_time_features_list,
             bitrate,
             enc_time,
-            dec_time,
             previous_resolution,
     ):
         resolution_predicted_features_list = self.select_best_resolution(
@@ -134,7 +135,7 @@ class LadderGenerator:
     def predict_enc_time(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
-        vector.append(resolution/2160)
+        vector.append(resolution / 2160)
         test_vector = [vector]
         min_model = self.models_enc_time['minimum']
         max_model = self.models_enc_time['maximum']
@@ -150,7 +151,7 @@ class LadderGenerator:
     def predict_xpsnr(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
-        vector.append(resolution/2160)
+        vector.append(resolution / 2160)
         vector.append(bitrate)
         test_vector = [vector]
         model = self.models_xpsnr['single']
@@ -160,7 +161,7 @@ class LadderGenerator:
     def predict_qp(self, features, resolution, bitrate):
         vector = []
         vector.extend(features)
-        vector.append(resolution/2160)
+        vector.append(resolution / 2160)
         test_vector = [vector]
         min_model = self.models_qp['minimum']
         max_model = self.models_qp['maximum']
@@ -171,28 +172,31 @@ class LadderGenerator:
         y = math.log2(bitrate)
         m = (b2 - b1) / (x2 - x1)
         b = b1 - m * x1
-        qp_pred = int((y - b)/m)
+        qp_pred = int((y - b) / m)
         if qp_pred > 50:
             qp_pred = 50
         elif qp_pred < 10:
-             qp_pred = 10
+            qp_pred = 10
         return int(qp_pred)
 
     def jnd_elimination(self, jnd_feature_list):
-        bitrate_list_len = len(self.bitrates_list)
-        representations = [jnd_feature_list[0]]
-        prev_index = 0
-        if jnd_feature_list[0][12] > self.max_xpsnr:
+        if self.jnd == 0:
+            return jnd_feature_list
+        else:
+            bitrate_list_len = len(self.bitrates_list)
+            representations = [jnd_feature_list[0]]
+            prev_index = 0
+            if jnd_feature_list[0][13] > self.max_xpsnr:
+                return representations
+            index = 1
+            while index < bitrate_list_len:
+                if (jnd_feature_list[index][13] - jnd_feature_list[prev_index][13]) >= self.jnd:
+                    representations.append(jnd_feature_list[index])
+                    prev_index = index
+                    if jnd_feature_list[index][13] >= self.max_xpsnr:
+                        return representations
+                index = index + 1
             return representations
-        index = 1
-        while index < bitrate_list_len:
-            if (jnd_feature_list[index][12] - jnd_feature_list[prev_index][12]) >= self.jnd:
-                representations.append(jnd_feature_list[index])
-                prev_index = index
-                if jnd_feature_list[index][12] >= self.max_xpsnr:
-                    return representations
-            index = index + 1
-        return representations
 
     def generate_ladder(self):
         new_features_list = []
@@ -203,7 +207,8 @@ class LadderGenerator:
             jnd_feature_list = []
             filter_condition = df_test["VideoName"] == video_name
             filtered_df = df_test[filter_condition]
-            xpsnr_features_list = filtered_df[["AvgE", "Avgh", "AvgL", "avgU", "avgV", "energyU", "energyV"]].values.tolist()
+            xpsnr_features_list = filtered_df[
+                ["AvgE", "Avgh", "AvgL", "avgU", "avgV", "energyU", "energyV"]].values.tolist()
             qp_or_time_features_list = filtered_df[
                 ["AvgE", "Avgh", "AvgL", "avgU", "avgV", "energyU", "energyV"]
             ].values.tolist()
@@ -215,7 +220,6 @@ class LadderGenerator:
                     qp_or_time_features_list[0],
                     bitrate,
                     self.actual_max_enc_time,
-                    self.actual_max_dec_time,
                     previous_resolution,
                 )
                 previous_resolution = resolution_qp_xpsnr_time_list[0]
@@ -258,4 +262,4 @@ class LadderGenerator:
         final_csv_df = final_csv_df.drop(columns=['xpsnr'])
 
         # Write the DataFrame to a CSV file
-        final_csv_df.to_csv(self.ladre_csv, index=False)
+        final_csv_df.to_csv(self.result_csv, index=False)

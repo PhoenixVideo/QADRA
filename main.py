@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--resultCsv", help="Output csv with optimized bitrate ladder", default='result.csv')
     parser.add_argument("--rmax", help="Maximum supported resolution", default=2160)
     parser.add_argument("--maxQuality", help="Maximum Quality (vvenc:XPSNR)", default=100)
-    parser.add_argument("--jnd", help="JND in terms of XPSNR",default=0)
+    parser.add_argument("--jnd", help="JND in terms of XPSNR", default=0)
 
     # Parse the arguments
     args = parser.parse_args()
@@ -42,9 +42,9 @@ def main():
     max_dec_time = float(args.maxDecTime)
     codec = args.codec
     r_max = args.rmax
-    ladre_csv = args.resultCsv
+    result_csv = args.resultCsv
     max_quality = args.maxQuality
-    jnd = int(args.jnd)
+    jnd = float(args.jnd)
     bitrates = [145, 300, 600, 900, 1600, 2400, 3400, 4500, 5800, 8100, 11600, 16800]
     dataset_path = "dataset/Sequences.csv"
     resolutions_list = [360, 540, 720, 1080, 1440, 2160]
@@ -53,12 +53,12 @@ def main():
         resolutions.append(resolution)
         if resolution == r_max:
             break
-    l_gen = ladder_generation.LadderGenerator(max_enc_time, max_dec_time, codec, ladre_csv, bitrates, dataset_path, resolutions, r_max,
+    l_gen = ladder_generation.LadderGenerator(max_enc_time, max_dec_time, codec, result_csv, bitrates, dataset_path,
+                                              resolutions, r_max,
                                               max_quality, jnd)
     l_gen.load_models()
     l_gen.generate_ladder()
 
 
-# Execute the main function
 if __name__ == "__main__":
-    main()
+    main()  # Execute the main function
