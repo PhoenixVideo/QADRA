@@ -18,4 +18,4 @@ QADRA is available as an open-source Python-based framework published under the 
 
  - [CLI options](cli.md)
 
- ![QADRA](LADRE_implementation.png)
+ ![QADRA](QADRA_implementation.png)
