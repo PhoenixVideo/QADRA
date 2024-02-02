@@ -14,4 +14,4 @@ QADRA is available as an open-source Python-based framework published under the 
 
 Please use the following citation option for this repository:
 
-1. Vignesh V Menon, Amritha Premkumar, Prajit T Rajendran, Adam Wieckowski, Benjamin Bross, Christian Timmerer, and Detlev Marpe. 2024. Energy-efficient Adaptive Video Streaming with Latency-Aware Dynamic Resolution Encoding. In Mile-High Video Conference (MHV ’24), February 11–14, 2024, Denver, CO, USA. ACM, New York, NY, USA, 7 pages. `[https://doi.org/10.1145/3593908.3593942]([https://doi.org/10.1145/3638036.3640801](https://doi.org/10.1145/3593908.3593942)) <https://doi.org/10.1145/3593908.3593942>`_
+1. Vignesh V Menon, Amritha Premkumar, Prajit T Rajendran, Adam Wieckowski, Benjamin Bross, Christian Timmerer, and Detlev Marpe. 2024. Energy-efficient Adaptive Video Streaming with Latency-Aware Dynamic Resolution Encoding. In Mile-High Video Conference (MHV ’24), February 11–14, 2024, Denver, CO, USA. ACM, New York, NY, USA, 7 pages. `<https://doi.org/10.1145/3638036.3640801>`_
