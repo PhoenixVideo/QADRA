@@ -36,7 +36,7 @@ class LadderGenerator:
         self.models_xpsnr = None
         self.models_qp = None
         self.max_enc_time = max_enc_time
-        self.max_dec_time = max_enc_time
+        self.max_dec_time = max_dec_time
         self.actual_max_enc_time = max_enc_time - 0.5
         self.actual_max_dec_time = max_dec_time - 0.5
         self.codec = codec

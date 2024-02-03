@@ -41,9 +41,9 @@ def main():
     max_enc_time = float(args.maxEncTime)
     max_dec_time = float(args.maxDecTime)
     codec = args.codec
-    r_max = args.rmax
+    r_max = int(args.rmax)
     result_csv = args.resultCsv
-    max_quality = args.maxQuality
+    max_quality = float(args.maxQuality)
     jnd = float(args.jnd)
     bitrates = [145, 300, 600, 900, 1600, 2400, 3400, 4500, 5800, 8100, 11600, 16800]
     dataset_path = "dataset/Sequences.csv"

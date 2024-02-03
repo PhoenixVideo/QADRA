@@ -17,5 +17,6 @@ Although reducing the overall encoding or decoding energy consumption and storag
 QADRA is available as an open-source Python-based framework published under the GPLv3 license.
 
  - [CLI options](cli.md)
+ - [Build Help](build.md)
 
  ![QADRA](QADRA_implementation.png)
